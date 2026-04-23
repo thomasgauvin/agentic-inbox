@@ -51,20 +51,32 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": [
-				"MailboxDO"
+			"transferred_classes": [
+				{
+					"from": "MailboxDO",
+					"from_script": "email-explorer-with-agents",
+					"to": "MailboxDO"
+				}
 			]
 		},
 		{
 			"tag": "v2",
-			"new_sqlite_classes": [
-				"EmailAgent"
+			"transferred_classes": [
+				{
+					"from": "EmailAgent",
+					"from_script": "email-explorer-with-agents",
+					"to": "EmailAgent"
+				}
 			]
 		},
 		{
 			"tag": "v3",
-			"new_sqlite_classes": [
-				"EmailMCP"
+			"transferred_classes": [
+				{
+					"from": "EmailMCP",
+					"from_script": "email-explorer-with-agents",
+					"to": "EmailMCP"
+				}
 			]
 		}
 	]

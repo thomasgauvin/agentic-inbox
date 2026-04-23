@@ -143,11 +143,14 @@ export const mailboxMigrations: Migration[] = [
 		sql: txn(`ALTER TABLE emails ADD COLUMN message_id TEXT;`),
 	},
 	{
-		name: "5_add_raw_headers",
+		// Name kept in sync with the legacy email-explorer-with-agents worker
+		// so transferred DOs don't re-apply this ALTER (which would fail).
+		name: "0005 add raw_headers",
 		sql: txn(`ALTER TABLE emails ADD COLUMN raw_headers TEXT;`),
 	},
 	{
-		name: "6_mark_sent_emails_as_read",
+		// Same reason as above -- preserve legacy name for transferred DOs.
+		name: "0006 mark_sent_emails_as_read",
 		sql: txn(`UPDATE emails SET read = 1 WHERE folder_id = 'sent' AND read = 0;`),
 	},
 	{
