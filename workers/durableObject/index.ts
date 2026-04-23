@@ -10,6 +10,7 @@ import * as schema from "../db/schema";
 import { Folders } from "../../shared/folders";
 import type { Env } from "../types";
 import { applyMigrations, mailboxMigrations } from "./migrations";
+import { Logger } from "../lib/logger";
 
 /**
  * SQL expression to normalize email subjects by stripping common
@@ -109,11 +110,11 @@ export class MailboxDO extends DurableObject<Env> {
 		try {
 			applyMigrations(this.ctx.storage.sql, mailboxMigrations, this.ctx.storage);
 		} catch (e) {
-			console.error(
-				"[MailboxDO] constructor migrations failed:",
-				(e as Error).message,
-				(e as Error).stack,
-			);
+			const error = e instanceof Error ? e : new Error(String(e));
+			new Logger({ component: "MailboxDO" }).error("Constructor migrations failed", {
+				error: error.message,
+				stack: error.stack,
+			});
 			throw e;
 		}
 	}
