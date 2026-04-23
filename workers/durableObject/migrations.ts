@@ -21,6 +21,8 @@
  * guard (`CREATE INDEX IF NOT EXISTS`, or a runtime column check for new
  * columns since SQLite lacks `ADD COLUMN IF NOT EXISTS`).
  */
+import { logError } from "../lib/logger";
+
 export function applyMigrations(
 	sql: SqlStorage,
 	_unused?: unknown,
@@ -92,11 +94,7 @@ export function applyMigrations(
 			run();
 		}
 	} catch (e) {
-		console.error(
-			"[mailbox-schema] Failed to ensure schema:",
-			(e as Error).message,
-			(e as Error).stack,
-		);
+		logError("[mailbox-schema] Failed to ensure schema", e);
 		throw e;
 	}
 }

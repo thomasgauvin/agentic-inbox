@@ -9,6 +9,7 @@ import { createRequestHandler } from "react-router";
 import { app as apiApp, receiveEmail } from "./index";
 import { EmailMCP } from "./mcp";
 import type { Env } from "./types";
+import { log, logError } from "./lib/logger";
 
 export { MailboxDO } from "./durableObject";
 export { EmailAgent } from "./agent";
@@ -45,15 +46,10 @@ const app = new Hono<{ Bindings: Env }>();
 // Global error handler -- surfaces the real error instead of generic
 // "Internal Server Error". Crucial for debugging the DO transfer migration.
 app.onError((err, c) => {
-	console.error(
-		"[app.onError]",
-		c.req.method,
-		c.req.url,
-		"error:",
-		err.message,
-		"\nstack:",
-		err.stack,
-	);
+	logError("unhandled request error", err, {
+		method: c.req.method,
+		url: c.req.url,
+	});
 	return c.json(
 		{
 			error: err.message || "Internal Server Error",
@@ -61,6 +57,21 @@ app.onError((err, c) => {
 		},
 		500,
 	);
+});
+
+// Structured request logging -- emits one JSON line per request
+app.use("*", async (c, next) => {
+	const start = Date.now();
+	try {
+		await next();
+	} finally {
+		log("info", "request", {
+			method: c.req.method,
+			path: c.req.path,
+			status: c.res?.status,
+			durationMs: Date.now() - start,
+		});
+	}
 });
 
 // Cloudflare Access JWT validation middleware (production only)
@@ -139,7 +150,7 @@ export default {
 		try {
 			await receiveEmail(event, env, ctx);
 		} catch (e) {
-			console.error("Failed to process incoming email:", (e as Error).message, (e as Error).stack);
+			logError("Failed to process incoming email", e);
 			// Re-throw so Cloudflare's email routing can retry delivery or bounce the message.
 			// Swallowing the error would silently drop the email.
 			throw e;

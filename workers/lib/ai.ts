@@ -10,6 +10,7 @@
  */
 
 import { escapeHtml, stripHtmlToText, textToHtml } from "./email-helpers";
+import { logError, logWarn } from "./logger";
 
 // ── Prompt Injection Scanner ───────────────────────────────────────
 
@@ -44,13 +45,13 @@ export async function isPromptInjection(ai: Ai, bodyHtml: string | null | undefi
 		const result = (response?.response || "NO").trim().toUpperCase();
 		
 		if (result.includes("YES")) {
-			console.warn("Prompt injection detected in incoming email, blocking auto-draft");
+			logWarn("Prompt injection detected in incoming email, blocking auto-draft");
 			return true;
 		}
 		
 		return false;
 	} catch (e) {
-		console.error("Prompt injection scanner failed, skipping auto-draft:", (e as Error).message);
+		logError("Prompt injection scanner failed, skipping auto-draft", e);
 		// Fail closed: treat scanner failures as potential injection to avoid
 		// auto-drafting replies to emails we couldn't verify.
 		// The email is still stored in the inbox — only auto-draft is skipped.
@@ -166,10 +167,10 @@ export async function verifyDraft(ai: Ai, body: string): Promise<string> {
 		// This threshold balances between catching real artifacts and
 		// preventing the verifier from gutting legitimate emails.
 		if (cleanedTrimmed.length < replyText.trim().length * 0.5) {
-			console.warn(
-				"Draft verifier removed >50% of content, falling back to original.",
-				`Original: ${replyText.trim().length} chars, Cleaned: ${cleanedTrimmed.length} chars`,
-			);
+			logWarn("Draft verifier removed >50% of content, falling back to original", {
+				originalLength: replyText.trim().length,
+				cleanedLength: cleanedTrimmed.length,
+			});
 			return body;
 		}
 
@@ -183,7 +184,7 @@ export async function verifyDraft(ai: Ai, body: string): Promise<string> {
 			? `${cleanedTrimmed}\n\n${quotedBlock}`
 			: cleanedTrimmed;
 	} catch (e) {
-				console.error("AI failed — returns empty body, callers may save blank draft:", (e as Error).message);
+		logError("AI failed — returns empty body, callers may save blank draft", e);
 		return "";
 	}
 }

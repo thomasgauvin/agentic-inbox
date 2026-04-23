@@ -31,6 +31,7 @@ import {
 } from "../lib/tools";
 import { Folders, FOLDER_TOOL_DESCRIPTION, MOVE_FOLDER_TOOL_DESCRIPTION } from "../../shared/folders";
 import type { Env } from "../types";
+import { log, logError, logWarn } from "../lib/logger";
 
 // AI SDK v6 changed tool() overloads significantly. We define tools as plain
 // objects matching the Tool type to avoid overload resolution issues.
@@ -312,7 +313,7 @@ export class EmailAgent extends AIChatAgent<any> {
 					headers: { "Content-Type": "application/json" },
 				});
 			} catch (e) {
-				console.error("onNewEmail handler failed:", (e as Error).message);
+				logError("onNewEmail handler failed", e);
 				return new Response(
 					JSON.stringify({ error: (e as Error).message }),
 					{ status: 500, headers: { "Content-Type": "application/json" } },
@@ -349,7 +350,7 @@ export class EmailAgent extends AIChatAgent<any> {
 			if (email?.body) {
 				const isInjection = await isPromptInjection(env.AI, email.body);
 				if (isInjection) {
-					console.warn("Skipping auto-draft due to detected prompt injection:", emailData.emailId);
+					logWarn("Skipping auto-draft due to detected prompt injection", { emailId: emailData.emailId });
 					
 					// Log to agent chat so the user knows why it skipped
 					const newMessages = [
@@ -397,7 +398,7 @@ export class EmailAgent extends AIChatAgent<any> {
 			if (threadContext) {
 				const threadInjection = await isPromptInjection(env.AI, threadContext);
 				if (threadInjection) {
-					console.warn("Skipping auto-draft due to prompt injection in thread context:", emailData.threadId);
+					logWarn("Skipping auto-draft due to prompt injection in thread context", { threadId: emailData.threadId });
 					const newMessages = [
 						{
 							id: crypto.randomUUID(),
@@ -420,7 +421,7 @@ export class EmailAgent extends AIChatAgent<any> {
 			}
 		}
 		} catch (e) {
-			console.warn("Pre-read failed, agent will use tools:", (e as Error).message);
+			logWarn("Pre-read failed, agent will use tools", { errorMessage: (e as Error).message });
 		}
 
 		let autoPrompt = `A new email just arrived. Draft an appropriate response using draft_reply.
@@ -548,7 +549,7 @@ Based on the email content and thread context above, draft a reply using draft_r
 
 			return { status: "draft_generated", text: result.text };
 		} catch (e) {
-			console.error("Auto-draft failed:", (e as Error).message);
+			logError("Auto-draft failed", e, { mailboxId: emailData.mailboxId, emailId: emailData.emailId });
 			return { status: "error", error: (e as Error).message };
 		}
 	}

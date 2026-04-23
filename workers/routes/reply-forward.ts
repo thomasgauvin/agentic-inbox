@@ -17,6 +17,7 @@ import {
 import { SendEmailRequestSchema } from "../lib/schemas";
 import { Folders } from "../../shared/folders";
 import type { MailboxContext } from "../lib/mailbox";
+import { logError } from "../lib/logger";
 
 type AppContext = Context<MailboxContext>;
 type RateLimitStub = { checkSendRateLimit: () => Promise<string | null> };
@@ -105,7 +106,7 @@ export async function handleReplyEmail(c: AppContext) {
 			})),
 			headers: buildThreadingHeaders(originalMsgId, references),
 		}).catch((e) => {
-			console.error("Deferred reply delivery failed:", (e as Error).message);
+			logError("Deferred reply delivery failed", e);
 		}),
 	);
 
@@ -190,7 +191,7 @@ export async function handleForwardEmail(c: AppContext) {
 				contentId: att.contentId,
 			})),
 		}).catch((e) => {
-			console.error("Deferred forward delivery failed:", (e as Error).message);
+			logError("Deferred forward delivery failed", e);
 		}),
 	);
 
