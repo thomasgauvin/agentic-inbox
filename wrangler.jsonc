@@ -48,17 +48,12 @@
 			}
 		]
 	},
-	// Migration history:
-	//   v1 (2026-03): initial -- new_sqlite_classes [MailboxDO]
-	//   v2 (2026-03): new_sqlite_classes [EmailAgent]
-	//   v3 (2026-03): new_sqlite_classes [EmailMCP]
-	//   v4 (2026-04): transferred from email-explorer-with-agents
-	//     (MailboxDO, EmailAgent, EmailMCP)
-	// All three DOs already exist in this script and contain live data.
-	// Keep the full history so Cloudflare's migration state matches the
-	// deployed script -- omitting a tag already applied is a no-op, but
-	// removing migrations entirely makes wrangler think the classes don't
-	// exist and it will fail.
+	// DO classes were originally created by these three `new_sqlite_classes`
+	// migrations. A fourth transfer migration was previously attempted but
+	// kept failing because the source script's classes had already been
+	// moved away -- so we do NOT declare it here. The DO data lives in
+	// this worker already; wrangler will see v1/v2/v3 as already-applied
+	// no-ops and not attempt any new migration on deploy.
 	"migrations": [
 		{
 			"tag": "v1",
@@ -71,26 +66,6 @@
 		{
 			"tag": "v3",
 			"new_sqlite_classes": ["EmailMCP"]
-		},
-		{
-			"tag": "v4",
-			"transferred_classes": [
-				{
-					"from": "MailboxDO",
-					"from_script": "email-explorer-with-agents",
-					"to": "MailboxDO"
-				},
-				{
-					"from": "EmailAgent",
-					"from_script": "email-explorer-with-agents",
-					"to": "EmailAgent"
-				},
-				{
-					"from": "EmailMCP",
-					"from_script": "email-explorer-with-agents",
-					"to": "EmailMCP"
-				}
-			]
 		}
 	]
 }
