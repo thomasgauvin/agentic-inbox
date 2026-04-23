@@ -9,6 +9,8 @@ import { createRequestHandler } from "react-router";
 import { app as apiApp, receiveEmail } from "./index";
 import { EmailMCP } from "./mcp";
 import type { Env } from "./types";
+import { requestLogging } from "./middleware/logging";
+import { Logger } from "./lib/logger";
 
 export { MailboxDO } from "./durableObject";
 export { EmailAgent } from "./agent";
@@ -42,18 +44,20 @@ function getAccessUrls(teamDomain: string) {
 // Main app that wraps the API and adds React Router fallback
 const app = new Hono<{ Bindings: Env }>();
 
+// Request logging middleware - adds structured logging for all requests
+// Emits a single wide event per request with full context
+app.use("*", requestLogging());
+
 // Global error handler -- surfaces the real error instead of generic
 // "Internal Server Error". Crucial for debugging the DO transfer migration.
 app.onError((err, c) => {
-	console.error(
-		"[app.onError]",
-		c.req.method,
-		c.req.url,
-		"error:",
-		err.message,
-		"\nstack:",
-		err.stack,
-	);
+	const logger = new Logger({ service: "agentic-inbox" });
+	logger.error("Unhandled error in request", {
+		method: c.req.method,
+		url: c.req.url,
+		error: err.message,
+		stack: err.stack,
+	});
 	return c.json(
 		{
 			error: err.message || "Internal Server Error",
@@ -136,10 +140,16 @@ export default {
 		env: Env,
 		ctx: ExecutionContext,
 	) {
+		const logger = new Logger({ service: "agentic-inbox", handler: "email" });
 		try {
 			await receiveEmail(event, env, ctx);
 		} catch (e) {
-			console.error("Failed to process incoming email:", (e as Error).message, (e as Error).stack);
+			const error = e instanceof Error ? e : new Error(String(e));
+			logger.error("Failed to process incoming email", {
+				rawSize: event.rawSize,
+				error: error.message,
+				stack: error.stack,
+			});
 			// Re-throw so Cloudflare's email routing can retry delivery or bounce the message.
 			// Swallowing the error would silently drop the email.
 			throw e;
