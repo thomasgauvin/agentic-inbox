@@ -42,6 +42,27 @@ function getAccessUrls(teamDomain: string) {
 // Main app that wraps the API and adds React Router fallback
 const app = new Hono<{ Bindings: Env }>();
 
+// Global error handler -- surfaces the real error instead of generic
+// "Internal Server Error". Crucial for debugging the DO transfer migration.
+app.onError((err, c) => {
+	console.error(
+		"[app.onError]",
+		c.req.method,
+		c.req.url,
+		"error:",
+		err.message,
+		"\nstack:",
+		err.stack,
+	);
+	return c.json(
+		{
+			error: err.message || "Internal Server Error",
+			stack: import.meta.env.DEV ? err.stack : undefined,
+		},
+		500,
+	);
+});
+
 // Cloudflare Access JWT validation middleware (production only)
 app.use("*", async (c, next) => {
 	// Skip validation in development

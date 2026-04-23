@@ -106,7 +106,16 @@ export class MailboxDO extends DurableObject<Env> {
 	constructor(state: DurableObjectState, env: Env) {
 		super(state, env);
 		this.db = drizzle(this.ctx.storage, { schema });
-		applyMigrations(this.ctx.storage.sql, mailboxMigrations, this.ctx.storage);
+		try {
+			applyMigrations(this.ctx.storage.sql, mailboxMigrations, this.ctx.storage);
+		} catch (e) {
+			console.error(
+				"[MailboxDO] constructor migrations failed:",
+				(e as Error).message,
+				(e as Error).stack,
+			);
+			throw e;
+		}
 	}
 
 	// ── Email CRUD (Drizzle) ───────────────────────────────────────

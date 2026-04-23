@@ -19,20 +19,41 @@ export function applyMigrations(
 	migrations: Migration[],
 	storage?: DurableObjectStorage,
 ): void {
-	sql.exec(`CREATE TABLE IF NOT EXISTS d1_migrations (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL UNIQUE,
-		applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-	)`);
+	try {
+		sql.exec(`CREATE TABLE IF NOT EXISTS d1_migrations (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+		)`);
+	} catch (e) {
+		console.error("[migrations] Failed to CREATE d1_migrations table:", (e as Error).message);
+		throw e;
+	}
+
+	// Log currently-applied migration names for diagnostics
+	try {
+		const applied = [...sql.exec(`SELECT name FROM d1_migrations ORDER BY id`)];
+		console.log("[migrations] Already applied:", applied.map((r: any) => r.name).join(", ") || "(none)");
+	} catch (e) {
+		console.error("[migrations] Failed to read applied migrations:", (e as Error).message);
+	}
 
 	for (const migration of migrations) {
-		const applied = [
-			...sql.exec(
-				`SELECT 1 FROM d1_migrations WHERE name = ?`,
-				migration.name,
-			),
-		];
+		let applied: unknown[];
+		try {
+			applied = [
+				...sql.exec(
+					`SELECT 1 FROM d1_migrations WHERE name = ?`,
+					migration.name,
+				),
+			];
+		} catch (e) {
+			console.error(`[migrations] Failed to check '${migration.name}':`, (e as Error).message);
+			throw e;
+		}
 		if (applied.length > 0) continue;
+
+		console.log(`[migrations] Applying '${migration.name}'`);
 
 		// Strip any existing BEGIN/COMMIT wrapper from the migration SQL.
 		// Cloudflare's DO runtime forbids SQL-level transactions -- must use
@@ -49,12 +70,20 @@ export function applyMigrations(
 			);
 		};
 
-		if (storage) {
-			// Preferred: atomic transaction via the DO JS API
-			storage.transactionSync(run);
-		} else {
-			// Fallback: run without explicit transaction (each exec is auto-committed)
-			run();
+		try {
+			if (storage) {
+				storage.transactionSync(run);
+			} else {
+				run();
+			}
+			console.log(`[migrations] Applied '${migration.name}'`);
+		} catch (e) {
+			console.error(
+				`[migrations] FAILED '${migration.name}':`,
+				(e as Error).message,
+				"\nSQL was:\n" + migrationSql,
+			);
+			throw e;
 		}
 	}
 }
